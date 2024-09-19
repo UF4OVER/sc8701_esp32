@@ -1,7 +1,7 @@
 from ili9341 import Display, color565
 from xglcd_font import XglcdFont
 from xpt2046 import Touch
-from machine import idle, Pin, SPI, PWM, I2C  # type: ignore
+from machine import idle, Pin, SPI, PWM
 import ina226
 
 # # I2C(INA226的实例化)
@@ -102,73 +102,69 @@ class VA_VALUE(object):
         for button_name, (x1, y1, x2, y2) in self.button_areas.items():
             if x1 <= x <= x2 and y1 <= y <= y2:
                 print(f"Button pressed: {button_name}")
-                self.display.fill_rectangle(0,300,60,8,0)
+                self.display.fill_rectangle(0, 300, 60, 8, 0)
                 self.display.draw_text8x8(0, 300, button_name, self.CYAN)
 
-                # 电压设置
-                if button_name == 'ADD_V':
-                    self.vol_set += self.tick
-                    self.duty_v += self.duty_tick_v
-                    print(f"{self.duty_v:.2f}")
-                    if self.vol_set > 24 or self.duty_v > 65535:
-                        self.vol_set = 24
-                        self.duty_v = 65535
+                match button_name:
+                    # 电压加减
+                    case 'ADD_V':
+                        self.vol_set += self.tick
+                        self.duty_v += self.duty_tick_v
+                        print(f"{self.duty_v:.2f}")
+                        if self.vol_set > 24 or self.duty_v > 65535:
+                            self.vol_set = 24
+                            self.duty_v = 65535
 
-                    self.display.fill_rectangle(70, 10, 70, 20, 0)
-                    self.display.draw_text(70, 10, f"{self.vol_set:.2f}", unispace, self.WHITE)
+                        self.display.fill_rectangle(70, 10, 70, 20, 0)
+                        self.display.draw_text(70, 10, f"{self.vol_set:.2f}", unispace, self.WHITE)
 
-                if button_name == 'SUB_V':
-                    self.vol_set -= self.tick
-                    self.duty_v -= self.duty_tick_v
-                    print(f"{self.duty_v:.2f}")
-                    if self.vol_set < 4 or self.duty_v < 0:
-                        self.vol_set = 4
-                        self.duty_v = 0
+                    case 'SUB_V':
+                        self.vol_set -= self.tick
+                        self.duty_v -= self.duty_tick_v
+                        print(f"{self.duty_v:.2f}")
+                        if self.vol_set < 4 or self.duty_v < 0:
+                            self.vol_set = 4
+                            self.duty_v = 0
 
-                    self.display.fill_rectangle(70, 10, 70, 20, 0)
-                    self.display.draw_text(70, 10, f"{self.vol_set:.2f}", unispace, self.WHITE)
+                        self.display.fill_rectangle(70, 10, 70, 20, 0)
+                        self.display.draw_text(70, 10, f"{self.vol_set:.2f}", unispace, self.WHITE)
 
-                # 电流设置
-                if button_name == 'ADD_I':
-                    self.cur_set += self.tick
-                    self.duty_i += self.duty_tick_i
-                    if self.cur_set > 7 or self.duty_i > 65535:
-                        self.cur_set = 7
-                        self.duty_i = 65535
-                    self.display.fill_rectangle(70, 50, 70, 20, 0)
-                    self.display.draw_text(70, 50, f"{self.cur_set:.2f}", unispace, self.WHITE)
+                    # 电流加减
+                    case 'ADD_I':
+                        self.cur_set += self.tick
+                        self.duty_i += self.duty_tick_i
+                        if self.cur_set > 7 or self.duty_i > 65535:
+                            self.cur_set = 7
+                            self.duty_i = 65535
+                        self.display.fill_rectangle(70, 50, 70, 20, 0)
+                        self.display.draw_text(70, 50, f"{self.cur_set:.2f}", unispace, self.WHITE)
 
-                if button_name == 'SUB_I':
-                    self.cur_set -= self.tick
-                    self.duty_i -= self.duty_tick_i
-                    if self.cur_set < 0 or self.duty_i < 0:
-                        self.duty_i = 0
-                        self.cur_set = 0
+                    case 'SUB_I':
+                        self.cur_set -= self.tick
+                        self.duty_i -= self.duty_tick_i
+                        if self.cur_set < 0 or self.duty_i < 0:
+                            self.duty_i = 0
+                            self.cur_set = 0
 
-                    self.display.fill_rectangle(70, 50, 70, 20, 0)
-                    self.display.draw_text(70, 50, f"{self.cur_set:.2f}", unispace, self.WHITE)
+                        self.display.fill_rectangle(70, 50, 70, 20, 0)
+                        self.display.draw_text(70, 50, f"{self.cur_set:.2f}", unispace, self.WHITE)
+                    # 切换模式
+                    case 'SW':
+                        if self.flag:
+                            self.tick = 0.1
+                            self.duty_tick_v = 328  # 间隔0.1V
+                            self.duty_tick_i = 936  # 间隔0.1A
+                        else:
+                            self.tick = 1
+                            self.duty_tick_v = 3277  # 间隔1V
+                            self.duty_tick_i = 9364  # 间隔1A
+                        self.flag = not self.flag
 
-                # 小数位切换
-                if button_name == 'SW':
-                    if self.flag:
-                        self.tick = 0.1
-                        self.duty_tick_v = 328  # 间隔0.1V
-                        self.duty_tick_i = 936  # 间隔0.1A
-                    else:
-                        self.tick = 1
-                        self.duty_tick_v = 3277  # 间隔1V
-                        self.duty_tick_i = 9364  # 间隔1A
-                    self.flag = not self.flag
-
-                # 设置
-
-                # vout = 4 + 20 * D
-                # iout = 7 * D
-                if button_name == 'SET':
-                    #  设置pwm输出到sc8701
-                    PWM_V.duty_u16(self.duty_v)
-                    PWM_I.duty_u16(self.duty_i)
-                    print(f"PWM_V:{self.duty_v}, PWM_I:{self.duty_i}")
+                    case 'SET':
+                        # 设置pwm输出到sc8701
+                        PWM_V.duty_u16(self.duty_v)
+                        PWM_I.duty_u16(self.duty_i)
+                        print(f"PWM_V:{self.duty_v}, PWM_I:{self.duty_i}")
 
                     # self.display.draw_text(70, 10, f"{V_real}", unispace, self  .WHITE)
                     # self.display.draw_text(70, 50, f"{I_real}", unispace, self.WHITE)
