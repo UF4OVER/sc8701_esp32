@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="bdb2fc7f-3676-4c67-b36b-2c86673b8340" name="乌班图1404" url="http://192.168.43.145">
+        <fileTransfer accessType="FTPS" host="192.168.43.145" port="8080">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
